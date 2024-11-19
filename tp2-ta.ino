@@ -19,6 +19,9 @@ const char *serverName = "api.thingspeak.com";
 // Cliente WiFi
 WiFiClient cliente;
 
+// Web server en el ESP32
+WiFiServer server(80);
+
 // Sensor DHT22
 DHT dht2(PIN_DHT22, DHT22);
 
@@ -35,6 +38,9 @@ const unsigned long intervaloEnvio = 20000; // 20 segundos
 // Variables para debounce
 volatile unsigned long ultimaInterrupcion = 0;
 const unsigned long debounceTiempo = 200; // Tiempo de debounce en ms
+
+// Para manejar solicitudes web
+String header;
 
 void IRAM_ATTR contarPulsacion() {
   unsigned long tiempoActual = millis();
@@ -64,6 +70,9 @@ void setup() {
   // Inicializar sensores y ThingSpeak
   dht2.begin();
   ThingSpeak.begin(cliente);
+
+  // Iniciar servidor web
+  server.begin();
 }
 
 void loop() {
@@ -75,6 +84,9 @@ void loop() {
     enviarDatosThingSpeak();
     tiempoUltimoEnvio = millis();
   }
+
+  // Manejar solicitudes web
+  manejarSolicitudesWeb();
 }
 
 void leerSensores() {
@@ -117,5 +129,57 @@ void enviarDatosThingSpeak() {
     Serial.println("Datos enviados correctamente a ThingSpeak.");
   } else {
     Serial.println("Error al enviar datos a ThingSpeak.");
+  }
+}
+
+void manejarSolicitudesWeb() {
+  WiFiClient client = server.available(); // Escuchar nuevos clientes
+  if (client) {
+    Serial.println("Nuevo cliente conectado.");
+    String currentLine = ""; // Cadena para almacenar la solicitud HTTP
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read(); // Leer byte del cliente
+        Serial.write(c);        // Imprimir en consola
+        header += c;
+        if (c == '\n') {
+          if (currentLine.length() == 0) {
+            // Responder con una página web
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:text/html");
+            client.println("Connection: close");
+            client.println();
+
+            // Contenido de la página
+            client.println("<!DOCTYPE html>");
+            client.println("<html>");
+            client.println("<head><title>Datos ESP32</title></head>");
+            client.println("<body>");
+            client.println("<h1>Datos Recopilados por el ESP32</h1>");
+            client.println("<table border='1' style='width:100%; text-align:center;'>");
+            client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedad (%)</th><th>Potenciómetro (%)</th><th>Pulsaciones</th></tr>");
+            client.println("<tr>");
+            client.println("<td>" + String(ultimaTemperatura) + "</td>");
+            client.println("<td>" + String(ultimaHumedad) + "</td>");
+            client.println("<td>" + String(ultimaPosicionPot) + "</td>");
+            client.println("<td>" + String(contadorPulsaciones) + "</td>");
+            client.println("</tr>");
+            client.println("</table>");
+            client.println("</body>");
+            client.println("</html>");
+
+            // Salir del bucle
+            break;
+          } else {
+            currentLine = "";
+          }
+        } else if (c != '\r') {
+          currentLine += c;
+        }
+      }
+    }
+    header = "";
+    client.stop();
+    Serial.println("Cliente desconectado.");
   }
 }
