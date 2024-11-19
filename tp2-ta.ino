@@ -1,6 +1,7 @@
 #include "ThingSpeak.h"
 #include "WiFi.h"
 #include "DHT.h"
+#include <HTTPClient.h>
 
 // Pines
 #define PIN_DHT22 33
@@ -165,6 +166,21 @@ void manejarSolicitudesWeb() {
             client.println("<td>" + String(contadorPulsaciones) + "</td>");
             client.println("</tr>");
             client.println("</table>");
+
+            // Segunda tabla: Leer datos de ThingSpeak
+            client.println("<h1>Datos desde ThingSpeak (Canal 2738000)</h1>");
+            client.println("<table border='1' style='width:100%; text-align:center;'>");
+            client.println("<tr><th>Field 1</th><th>Field 2</th><th>Field 3</th><th>Field 4</th></tr>");
+            
+            // Leer datos de ThingSpeak
+            String jsonData = obtenerDatosDeThingSpeak();
+            if (jsonData != "") {
+              client.println(jsonData);
+            } else {
+              client.println("<tr><td colspan='4'>No se pudo obtener datos de ThingSpeak</td></tr>");
+            }
+
+            client.println("</table>");
             client.println("</body>");
             client.println("</html>");
 
@@ -183,3 +199,68 @@ void manejarSolicitudesWeb() {
     Serial.println("Cliente desconectado.");
   }
 }
+
+// Función para obtener datos del canal 2738000 de ThingSpeak
+String obtenerDatosDeThingSpeak() {
+  HTTPClient http;
+  String jsonData = "";
+  String url = "https://api.thingspeak.com/channels/2738000/feeds.json?api_key=YOUR_READ_API_KEY&results=1";
+  
+  http.begin(url);
+  int httpCode = http.GET();
+  if (httpCode == 200) {
+    // Si la solicitud fue exitosa, obtener los datos JSON
+    String payload = http.getString();
+    
+    // Buscar el primer "feed" dentro del JSON
+    int startIndex = payload.indexOf("\"feeds\":");
+    int endIndex = payload.indexOf("]}", startIndex);
+    
+    if (startIndex != -1 && endIndex != -1) {
+      // Extraemos solo la parte de los feeds
+      String feedsData = payload.substring(startIndex + 9, endIndex);
+      
+      // Procesamos cada uno de los feeds y extraemos los valores
+      int latitudeIndex = feedsData.indexOf("\"field1\":\"");
+      int longitudeIndex = feedsData.indexOf("\"field2\":\"");
+      int field4Index = feedsData.indexOf("\"field4\":\"");
+      int field5Index = feedsData.indexOf("\"field5\":\"");
+
+      // Crear los encabezados de la tabla con los nombres de los campos
+      jsonData += "<table><tr><th>Latitude</th><th>Longitude</th><th>Tensão (V)</th></tr>";
+      
+      // Verificamos que los campos estén presentes y extraemos los valores
+      if (latitudeIndex != -1) {
+        String latitude = feedsData.substring(latitudeIndex + 10, feedsData.indexOf("\"", latitudeIndex + 10));
+        jsonData += "<tr><td>" + latitude + "</td>";
+      } else {
+        jsonData += "<tr><td>-</td>";
+      }
+      
+      if (longitudeIndex != -1) {
+        String longitude = feedsData.substring(longitudeIndex + 10, feedsData.indexOf("\"", longitudeIndex + 10));
+        jsonData += "<td>" + longitude + "</td>";
+      } else {
+        jsonData += "<td>-</td>";
+      }
+
+      // Campo Tensão (V)
+      if (field4Index != -1) {
+        String field4 = feedsData.substring(field4Index + 10, feedsData.indexOf("\"", field4Index + 10));
+        jsonData += "<td>" + field4 + "</td></tr>";
+      } else {
+        jsonData += "<td>-</td></tr>";
+      }
+
+      jsonData += "</table>"; // Cerrar la tabla
+    }
+  } else {
+    Serial.println("Error en la solicitud HTTP: " + String(httpCode));
+    jsonData = "<p>No se pudo obtener datos de ThingSpeak</p>";
+  }
+  http.end();
+  return jsonData;
+}
+
+
+
