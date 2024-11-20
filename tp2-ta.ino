@@ -77,11 +77,12 @@ void setup() {
 }
 
 void loop() {
-  // Leer sensores
-  leerSensores();
+  
 
   // Enviar datos a ThingSpeak cada 20 segundos
   if (millis() - tiempoUltimoEnvio >= intervaloEnvio) {
+  // Leer sensores
+    leerSensores();
     enviarDatosThingSpeak();
     tiempoUltimoEnvio = millis();
   }
@@ -159,6 +160,8 @@ void manejarSolicitudesWeb() {
             client.println("<h1>Datos Recopilados por el ESP32</h1>");
             client.println("<table border='1' style='width:100%; text-align:center;'>");
             client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedad (%)</th><th>Potenciómetro (%)</th><th>Pulsaciones</th></tr>");
+
+            // Agregar datos dinámicos
             client.println("<tr>");
             client.println("<td>" + String(ultimaTemperatura) + "</td>");
             client.println("<td>" + String(ultimaHumedad) + "</td>");
@@ -167,17 +170,16 @@ void manejarSolicitudesWeb() {
             client.println("</tr>");
             client.println("</table>");
 
-            // Segunda tabla: Leer datos de ThingSpeak
             client.println("<h1>Datos desde ThingSpeak (Canal 2738000)</h1>");
             client.println("<table border='1' style='width:100%; text-align:center;'>");
-            client.println("<tr><th>Field 1</th><th>Field 2</th><th>Field 3</th><th>Field 4</th></tr>");
-            
+            client.println("<tr><th>Latitud</th><th>Longitud</th><th>Tensión</th></tr>");
+
             // Leer datos de ThingSpeak
             String jsonData = obtenerDatosDeThingSpeak();
             if (jsonData != "") {
-              client.println(jsonData);
+              client.println(jsonData); // Mostrar datos reales
             } else {
-              client.println("<tr><td colspan='4'>No se pudo obtener datos de ThingSpeak</td></tr>");
+              client.println("<tr><td colspan='3'>No se pudo obtener datos de ThingSpeak</td></tr>");
             }
 
             client.println("</table>");
@@ -198,6 +200,51 @@ void manejarSolicitudesWeb() {
     client.stop();
     Serial.println("Cliente desconectado.");
   }
+}
+
+
+// Función para obtener datos del canal de ThingSpeak
+String obtenerDatosDeThingSpeaPrivado() {
+  HTTPClient http;
+  String jsonData = "";
+  String url = "https://api.thingspeak.com/channels/2747874/feeds.json?api_key=W2ST8KR2EOSUDP2O&results=1"; // Cambiar por la API Key de lectura si corresponde
+  
+  http.begin(url);
+  int httpCode = http.GET();
+  if (httpCode == 200) {
+    // Si la solicitud fue exitosa, obtener los datos JSON
+    String payload = http.getString();
+    
+    // Extraer los datos relevantes del JSON
+    int startIndex = payload.indexOf("\"field1\":\"");
+    int endIndex = payload.indexOf("\"", startIndex + 9);
+    String field1 = payload.substring(startIndex + 9, endIndex);
+
+    startIndex = payload.indexOf("\"field2\":\"", endIndex);
+    endIndex = payload.indexOf("\"", startIndex + 9);
+    String field2 = payload.substring(startIndex + 9, endIndex);
+
+    startIndex = payload.indexOf("\"field3\":\"", endIndex);
+    endIndex = payload.indexOf("\"", startIndex + 9);
+    String field3 = payload.substring(startIndex + 9, endIndex);
+
+    startIndex = payload.indexOf("\"field4\":\"", endIndex);
+    endIndex = payload.indexOf("\"", startIndex + 9);
+    String field4 = payload.substring(startIndex + 9, endIndex);
+
+    // Construir fila HTML con los datos extraídos
+    jsonData += "<tr>";
+    jsonData += "<td>" + field1 + "</td>";
+    jsonData += "<td>" + field2 + "</td>";
+    jsonData += "<td>" + field3 + "</td>";
+    jsonData += "<td>" + field4 + "</td>";
+    jsonData += "</tr>";
+  } else {
+    Serial.println("Error en la solicitud HTTP: " + String(httpCode));
+    jsonData = "<p>No se pudo obtener datos de ThingSpeak</p>";
+  }
+  http.end();
+  return jsonData;
 }
 
 // Función para obtener datos del canal 2738000 de ThingSpeak
@@ -261,6 +308,5 @@ String obtenerDatosDeThingSpeak() {
   http.end();
   return jsonData;
 }
-
 
 
