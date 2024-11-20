@@ -82,6 +82,7 @@ void loop() {
   // Enviar datos a ThingSpeak cada 20 segundos
   if (millis() - tiempoUltimoEnvio >= intervaloEnvio) {
   // Leer sensores
+    Serial.println("IP: " + WiFi.localIP().toString());
     leerSensores();
     enviarDatosThingSpeak();
     tiempoUltimoEnvio = millis();
@@ -124,7 +125,9 @@ void enviarDatosThingSpeak() {
   ThingSpeak.setField(1, ultimaTemperatura);
   ThingSpeak.setField(2, ultimaHumedad);
   ThingSpeak.setField(3, ultimaPosicionPot);
-  ThingSpeak.setField(4, contadorPulsaciones);
+  String contadorPulsacionesStr = String(contadorPulsaciones); 
+
+  ThingSpeak.setStatus(contadorPulsacionesStr);
 
   // Enviar datos
   if (ThingSpeak.writeFields(channelID, WriteAPIKey)) {
@@ -159,7 +162,7 @@ void manejarSolicitudesWeb() {
             client.println("<body>");
             client.println("<h1>Datos Recopilados por el ESP32</h1>");
             client.println("<table border='1' style='width:100%; text-align:center;'>");
-            client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedad (%)</th><th>Potenciómetro (%)</th><th>Pulsaciones</th></tr>");
+            client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedadf (%)</th><th>Potenciómetro (%)</th><th>Pulsaciones</th></tr>");
 
             // Agregar datos dinámicos
             client.println("<tr>");
@@ -204,18 +207,21 @@ void manejarSolicitudesWeb() {
 
 
 // Función para obtener datos del canal de ThingSpeak
-String obtenerDatosDeThingSpeaPrivado() {
+String obtenerDatosDeThingSpeakPrivado() {
   HTTPClient http;
   String jsonData = "";
-  String url = "https://api.thingspeak.com/channels/2747874/feeds.json?api_key=W2ST8KR2EOSUDP2O&results=1"; // Cambiar por la API Key de lectura si corresponde
   
+  // URL para obtener los feeds (datos de fields)
+  String url = "https://api.thingspeak.com/channels/2747874/feeds.json?api_key=W2ST8KR2EOSUDP2O&results=1"; 
+  
+  // Solicitar los datos de los fields
   http.begin(url);
   int httpCode = http.GET();
   if (httpCode == 200) {
-    // Si la solicitud fue exitosa, obtener los datos JSON
+    // Si la solicitud fue exitosa, obtener los datos JSON de los feeds
     String payload = http.getString();
     
-    // Extraer los datos relevantes del JSON
+    // Extraer los datos de los fields
     int startIndex = payload.indexOf("\"field1\":\"");
     int endIndex = payload.indexOf("\"", startIndex + 9);
     String field1 = payload.substring(startIndex + 9, endIndex);
@@ -228,24 +234,45 @@ String obtenerDatosDeThingSpeaPrivado() {
     endIndex = payload.indexOf("\"", startIndex + 9);
     String field3 = payload.substring(startIndex + 9, endIndex);
 
-    startIndex = payload.indexOf("\"field4\":\"", endIndex);
-    endIndex = payload.indexOf("\"", startIndex + 9);
-    String field4 = payload.substring(startIndex + 9, endIndex);
-
-    // Construir fila HTML con los datos extraídos
+    // Construir fila HTML con los datos de los fields
     jsonData += "<tr>";
-    jsonData += "<td>" + field1 + "</td>";
-    jsonData += "<td>" + field2 + "</td>";
-    jsonData += "<td>" + field3 + "</td>";
-    jsonData += "<td>" + field4 + "</td>";
+    jsonData += "<td>" + field1 + "</td>"; // Temperatura u otro dato
+    jsonData += "<td>" + field2 + "</td>"; // Humedad u otro dato
+    jsonData += "<td>" + field3 + "</td>"; // Potenciómetro u otro dato
     jsonData += "</tr>";
   } else {
-    Serial.println("Error en la solicitud HTTP: " + String(httpCode));
-    jsonData = "<p>No se pudo obtener datos de ThingSpeak</p>";
+    Serial.println("Error en la solicitud HTTP de fields: " + String(httpCode));
+    jsonData = "<p>No se pudo obtener datos de ThingSpeak (fields)</p>";
   }
+
+  // URL para obtener el status (pulsaciones)
+  String statusUrl = "https://api.thingspeak.com/channels/2747874/status.json?api_key=W2ST8KR2EOSUDP2O"; 
+  
+  // Solicitar los datos del status
+  http.begin(statusUrl);
+  httpCode = http.GET();
+  if (httpCode == 200) {
+    // Si la solicitud fue exitosa, obtener los datos JSON del status
+    String payload = http.getString();
+    
+    // Extraer el valor de las pulsaciones desde el status
+    int startIndex = payload.indexOf("\"status\":\"");
+    int endIndex = payload.indexOf("\"", startIndex + 10);
+    String pulsaciones = payload.substring(startIndex + 10, endIndex);
+
+    // Construir fila HTML con el valor de las pulsaciones
+    jsonData += "<tr>";
+    jsonData += "<td colspan='3'>Pulsaciones: " + pulsaciones + "</td>"; // Pulsaciones
+    jsonData += "</tr>";
+  } else {
+    Serial.println("Error en la solicitud HTTP de status: " + String(httpCode));
+    jsonData += "<tr><td colspan='4'>No se pudo obtener datos del status de ThingSpeak</td></tr>";
+  }
+
   http.end();
   return jsonData;
 }
+
 
 // Función para obtener datos del canal 2738000 de ThingSpeak
 String obtenerDatosDeThingSpeak() {
