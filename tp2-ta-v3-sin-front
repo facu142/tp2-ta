@@ -156,6 +156,7 @@ void manejarSolicitudesWeb() {
             client.println();
 
             obtenerDatosDeThingSpeakPublico(client);
+
             obtenerDatosDeThingSpeakPrivado(client);
 
             // Salir del bucle
@@ -186,7 +187,12 @@ void obtenerDatosDeThingSpeakPrivado(WiFiClient &client) {
   if (httpCode == 200) {
     // Si la solicitud fue exitosa, obtener los datos JSON de los feeds
     String payload = http.getString();
-    client.println(payload);  // Enviar al cliente conectado
+    client.println("<h1>Datos Canal 2747874</h1>");
+    client.println("<br>");
+    client.println(payload);                         // Enviar al cliente conectado
+    client.println("<br>");                         // Enviar al cliente conectado
+    client.println("///////////////////////////");  // Enviar al cliente conectado
+    client.println("<br>");         
   }
   http.end();
 
@@ -198,7 +204,12 @@ void obtenerDatosDeThingSpeakPrivado(WiFiClient &client) {
   httpCode = http.GET();
   if (httpCode == 200) {
     String payload = http.getString();
-    client.println(payload);  // Enviar al cliente conectado
+    client.println("<h1>Datos Canal 2747874 (Status - Pulsador)</h1>");
+    client.println("<br>");
+    client.println(payload);                         // Enviar al cliente conectado
+    client.println("<br>");                         // Enviar al cliente conectado
+    client.println("///////////////////////////");  // Enviar al cliente conectado
+    client.println("<br>");                         // Enviar al cliente conectado
   }
   http.end();
 }
@@ -214,8 +225,12 @@ void obtenerDatosDeThingSpeakPublico(WiFiClient &client) {
   int httpCode = http.GET();
   if (httpCode == 200) {
     String payload = http.getString();
-    client.println(payload);  // Enviar al cliente conectado
+    client.println("<h1>Datos Canal 2738000</h1>");
+    client.println("<br>");
+    client.println(payload);                        // Enviar al cliente conectado
+    client.println("<br>");                         // Enviar al cliente conectado
+    client.println("///////////////////////////");  // Enviar al cliente conectado
+    client.println("<br>");                         // Enviar al cliente conectado
   }
   http.end();
 }
-
