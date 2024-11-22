@@ -11,8 +11,8 @@
 #define PIN_BOTON 19
 
 // Credenciales de red WiFi
-const char *ssid = "PALOMACLARO";
-const char *password = "R87POKCIMD";
+const char *ssid = "ACNET2";
+const char *password = "";
 
 // Configuración de ThingSpeak
 unsigned long channelID = 2747874;
