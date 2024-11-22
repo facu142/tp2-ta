@@ -188,8 +188,9 @@ void obtenerDatosDeThingSpeakPrivado(WiFiClient &client) {
   int httpCode = http.GET();
   if (httpCode == 200) {
     // Si la solicitud fue exitosa, obtener los datos JSON de los feeds
-   String payload = http.getString();
+    String payload = http.getString();
     // Crear un documento JSON
+    // client.println(payload)
     StaticJsonDocument<1024> doc;
 
     // Deserializar el JSON recibido
@@ -209,22 +210,19 @@ void obtenerDatosDeThingSpeakPrivado(WiFiClient &client) {
     String temp = feed["field1"].as<String>();
     String hum = feed["field2"].as<String>();
     String pote = feed["field3"].as<String>();
-    String puls = feed["field4"].isNull() ? "N/A" : feed["field4"].as<String>();
+    // String puls = feed["field4"].isNull() ? "N/A" : feed["field4"].as<String>();
 
     client.println("<h1>Datos Canal" + canalNombre + "</h1>");
     client.println("<h2>Descripcion del Canal" + canalDescripcion + "</h2>");
     client.println("<table>");
-    client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedad (%)</th><th>Potenciómetro (%)</th><th>Pulsaciones</th></tr>");
+    client.println("<tr><th>Temperatura (&deg;C)</th><th>Humedad (%)</th><th>Potenciómetro (%)</th><th>Estado pulsaciones</th></tr>");
 
     // Agregar datos dinámicos
     client.println("<tr>");
     client.println("<td>" + temp + "</td>");
     client.println("<td>" + hum + "</td>");
     client.println("<td>" + pote + "</td>");
-    client.println("<td>" + puls + "</td>");
-    client.println("</tr>");
-    client.println("</table>");
-
+    // client.println("<td>" + puls + "</td>");
   }
   http.end();
 
@@ -236,14 +234,25 @@ void obtenerDatosDeThingSpeakPrivado(WiFiClient &client) {
   httpCode = http.GET();
   if (httpCode == 200) {
     String payload = http.getString();
-    client.println("<h1>Datos Canal 2747874 (Status - Pulsador)</h1>");
-    client.println("<br>");
-    client.println(payload);                        // Enviar al cliente conectado
-    client.println("<br>");                         // Enviar al cliente conectado
-    client.println("///////////////////////////");  // Enviar al cliente conectado
-    client.println("<br>");                         // Enviar al cliente conectado
-    client.println("</body>");
-    client.println("</html>");
+    // client.println(payload);
+    // Crear un documento JSON
+    StaticJsonDocument<512> doc;
+
+    // Deserializar el JSON
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      Serial.print(F("Error al deserializar JSON: "));
+      Serial.println(error.f_str());
+      return;
+    }
+    JsonArray feeds = doc["feeds"];
+    JsonObject firstFeed = feeds[0];
+    String status = firstFeed["status"].as<String>();
+    // client.println("Estado: " + status);
+    client.println("<td>" + status + "</td>");
+    client.println("</tr>");
+    client.println("</table>");
   }
   http.end();
 }
@@ -259,6 +268,30 @@ void obtenerDatosDeThingSpeakPublico(WiFiClient &client) {
   int httpCode = http.GET();
   if (httpCode == 200) {
     String payload = http.getString();
+
+    // client.println(payload);  // Enviar al cliente conectado
+
+    // Crear un documento JSON
+    StaticJsonDocument<1024> doc;
+
+    // Deserializar el JSON recibido
+    DeserializationError error = deserializeJson(doc, payload);
+    if (error) {
+      Serial.print("Error al analizar JSON: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    // Extraer datos del JSON
+    JsonObject channel = doc["channel"];
+    JsonObject feed = doc["feeds"][0];
+
+    String canalNombre = channel["name"].as<String>();
+    String canalDescripcion = channel["description"].as<String>();
+    String latitud = feed["field1"].as<String>();
+    String longitud = feed["field2"].as<String>();
+    String tension = feed["field7"].as<String>();
+
     client.println("<!DOCTYPE html>");
     client.println("<html lang='en'>");
     client.println("<head>");
@@ -274,13 +307,19 @@ void obtenerDatosDeThingSpeakPublico(WiFiClient &client) {
     client.println("</style>");
     client.println("</head>");
     client.println("<body>");
-    
-    client.println("<h1>Datos Canal 2738000</h1>");
-    client.println("<br>");
-    client.println(payload);                        // Enviar al cliente conectado
-    client.println("<br>");                         // Enviar al cliente conectado
-    client.println("///////////////////////////");  // Enviar al cliente conectado
-    client.println("<br>");                         // Enviar al cliente conectado
+
+    client.println("<h1>Datos Canal" + canalNombre + "</h1>");
+    client.println("<h2>Descripcion del Canal" + canalDescripcion + "</h2>");
+    client.println("<table>");
+    client.println("<tr><th>Latitud </th><th>Longitud</th><th>Tension(V)</th></tr>");
+
+    // Agregar datos dinámicos
+    client.println("<tr>");
+    client.println("<td>" + latitud + "</td>");
+    client.println("<td>" + longitud + "</td>");
+    client.println("<td>" + tension + "</td>");
+    client.println("</tr>");
+    client.println("</table>");
   }
   http.end();
 }
